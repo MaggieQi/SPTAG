@@ -102,7 +102,8 @@ namespace SPTAG
 
 #define Search(CheckDeleted1) \
         std::shared_lock<std::shared_timed_mutex> lock(*(m_pTrees.m_lock)); \
-        m_pTrees.InitSearchTrees(this, p_query, p_space, m_iNumberOfInitialDynamicPivots); \
+        m_pTrees.InitSearchTrees(this, p_query, p_space); \
+        m_pTrees.SearchTrees(this, p_query, p_space, m_iNumberOfInitialDynamicPivots); \
         while (!p_space.m_NGQueue.empty()) { \
             COMMON::HeapCell gnode = p_space.m_NGQueue.pop(); \
             const SizeType *node = m_pGraph[gnode.node]; \
