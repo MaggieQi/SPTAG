@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+#include "inc/Core/Common/CommonUtils.h"
 #include "inc/Test.h"
 #include "inc/Helper/SimpleIniReader.h"
 #include "inc/Core/VectorIndex.h"
@@ -171,7 +172,7 @@ void Test(SPTAG::IndexAlgoType algo, std::string distCalcMethod)
     Search<float>("testindices", query.data(), q, k, truthmeta6);
 }
 
-BOOST_AUTO_TEST_SUITE (AlgoTest)
+BOOST_AUTO_TEST_SUITE(AlgoTest)
 
 BOOST_AUTO_TEST_CASE(KDTTest)
 {
