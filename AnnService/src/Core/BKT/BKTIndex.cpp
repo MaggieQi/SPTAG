@@ -122,7 +122,7 @@ namespace SPTAG
                     } \
                 } \
                 else { \
-                    if (!space.m_Results.insert(gnode.distance)) { \
+                    if (!p_space.m_Results.insert(gnode.distance)) { \
                         p_query.SortResult(); return; \
                     } \
                 } \
