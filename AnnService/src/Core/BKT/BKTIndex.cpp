@@ -122,8 +122,7 @@ namespace SPTAG
                     } \
                 } \
                 else { \
-                    p_space.m_iNumOfContinuousNoBetterPropagation++; \
-                    if (p_space.m_iNumOfContinuousNoBetterPropagation > p_space.m_iContinuousLimit || p_space.m_iNumberOfCheckedLeaves > p_space.m_iMaxCheck) { \
+                    if (!space.m_Results.insert(gnode.distance)) { \
                         p_query.SortResult(); return; \
                     } \
                 } \

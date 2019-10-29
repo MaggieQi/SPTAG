@@ -30,46 +30,45 @@ namespace SPTAG
             }
         };
 
-        template <typename T>
-        class CountVector
-        {
-            size_t m_bytes;
-            T* m_data;
-            T m_count;
-            T MAX;
-
+        class DistPriorityQueue {
+            float* data;
+            int size;
+            int count;
         public:
-            void Init(SizeType size)
-            {
-                m_bytes = sizeof(T) * size;
-                m_data = new T[size];
-                m_count = 0;
-                MAX = ((std::numeric_limits<T>::max)());
-                memset(m_data, 0, m_bytes);
+            DistPriorityQueue() {}
+
+            void Resize(int size_) {
+                data = new float[size_ + 1];
+                for (int i = 0; i <= size_; i++) data[i] = MaxDist;
+                size = size_;
+                count = size_;
             }
-
-            CountVector() :m_data(nullptr) {}
-
-            ~CountVector() { if (m_data != nullptr) delete[] m_data; }
-
-            inline void clear()
-            {
-                if (m_count == MAX)
-                {
-                    memset(m_data, 0, m_bytes);
-                    m_count = 1;
-                }
-                else
-                {
-                    m_count++;
-                }
+            void clear(int count_) {
+                count = count_;
+                for (int i = 0; i <= count; i++) data[i] = MaxDist;
             }
+            ~DistPriorityQueue() {
+                delete[] data;
+            }
+            bool insert(float dist) {
+                if (dist > data[1]) return false;
 
-            inline bool CheckAndSet(SizeType idx)
-            {
-                if (m_data[idx] == m_count) return true;
-                m_data[idx] = m_count;
-                return false;
+                data[1] = dist;
+                int parent = 1, next = 2;
+                while (next < count) {
+                    if (data[next] < data[next + 1]) next++;
+                    if (data[parent] < data[next]) {
+                        std::swap(data[next], data[parent]);
+                        parent = next;
+                        next <<= 1;
+                    }
+                    else break;
+                }
+                if (next == count && data[parent] < data[next]) std::swap(data[parent], data[next]);
+                return true;
+            }
+            float worst() {
+                return data[1];
             }
         };
 
@@ -110,7 +109,7 @@ namespace SPTAG
 
             void Init(SizeType size)
             {
-                int ex = (int)log2(size) + 1;
+                int ex = (int)log2(size) + 2;
                 m_poolSize = (1 << ex) - 1;
                 m_secondHash = true;
                 m_hashTable.reset(new SizeType[(m_poolSize + 1) * 2]);
@@ -180,10 +179,10 @@ namespace SPTAG
         {
             void Initialize(int maxCheck, SizeType dataSize)
             {
-                //nodeCheckStatus.Init(maxCheck);
-                nodeCheckStatus.Init(dataSize);
+                nodeCheckStatus.Init(maxCheck);
                 m_SPTQueue.Resize(maxCheck * 10);
                 m_NGQueue.Resize(maxCheck * 30);
+                m_Results.Resize(maxCheck / 16);
 
                 m_iNumberOfTreeCheckedLeaves = 0;
                 m_iNumberOfCheckedLeaves = 0;
@@ -197,6 +196,7 @@ namespace SPTAG
                 nodeCheckStatus.clear();
                 m_SPTQueue.clear();
                 m_NGQueue.clear();
+                m_Results.clear(maxCheck / 16);
 
                 m_iNumberOfTreeCheckedLeaves = 0;
                 m_iNumberOfCheckedLeaves = 0;
@@ -210,8 +210,7 @@ namespace SPTAG
                 return nodeCheckStatus.CheckAndSet(idx);
             }
 
-            //OptHashPosVector nodeCheckStatus;
-            CountVector<unsigned short> nodeCheckStatus;
+            OptHashPosVector nodeCheckStatus;
 
             // counter for dynamic pivoting
             int m_iNumOfContinuousNoBetterPropagation;
@@ -223,8 +222,10 @@ namespace SPTAG
             // Prioriy queue used for neighborhood graph
             Heap<HeapCell> m_NGQueue;
 
-            // Priority queue Used for BKT-Tree
+            // Priority queue Used for Tree
             Heap<HeapCell> m_SPTQueue;
+
+            DistPriorityQueue m_Results;
         };
     }
 }
