@@ -30,6 +30,49 @@ namespace SPTAG
             }
         };
 
+        template <typename T>
+        class CountVector
+        {
+            size_t m_bytes;
+            T* m_data;
+            T m_count;
+            T MAX;
+
+        public:
+            void Init(SizeType size)
+            {
+                m_bytes = sizeof(T) * size;
+                m_data = new T[size];
+                m_count = 0;
+                MAX = ((std::numeric_limits<T>::max)());
+                memset(m_data, 0, m_bytes);
+            }
+
+            CountVector() :m_data(nullptr) {}
+
+            ~CountVector() { if (m_data != nullptr) delete[] m_data; }
+
+            inline void clear()
+            {
+                if (m_count == MAX)
+                {
+                    memset(m_data, 0, m_bytes);
+                    m_count = 1;
+                }
+                else
+                {
+                    m_count++;
+                }
+            }
+
+            inline bool CheckAndSet(SizeType idx)
+            {
+                if (m_data[idx] == m_count) return true;
+                m_data[idx] = m_count;
+                return false;
+            }
+        };
+
         class OptHashPosVector
         {
         protected:
@@ -137,7 +180,8 @@ namespace SPTAG
         {
             void Initialize(int maxCheck, SizeType dataSize)
             {
-                nodeCheckStatus.Init(maxCheck);
+                //nodeCheckStatus.Init(maxCheck);
+                nodeCheckStatus.Init(dataSize);
                 m_SPTQueue.Resize(maxCheck * 10);
                 m_NGQueue.Resize(maxCheck * 30);
 
@@ -166,8 +210,8 @@ namespace SPTAG
                 return nodeCheckStatus.CheckAndSet(idx);
             }
 
-            OptHashPosVector nodeCheckStatus;
             //OptHashPosVector nodeCheckStatus;
+            CountVector<unsigned short> nodeCheckStatus;
 
             // counter for dynamic pivoting
             int m_iNumOfContinuousNoBetterPropagation;
