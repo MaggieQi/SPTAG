@@ -112,7 +112,6 @@ namespace SPTAG
             _mm_prefetch((const char *)node, _MM_HINT_T0); \
             CheckDeleted1 { \
                 if (p_query.AddPoint(gnode.node, gnode.distance)) { \
-                    p_space.m_iNumOfContinuousNoBetterPropagation = 0; \
                     SizeType checkNode = node[checkPos]; \
                     if (checkNode < -1) { \
                         const COMMON::BKTNode& tnode = m_pTrees[-2 - checkNode]; \
@@ -129,6 +128,8 @@ namespace SPTAG
             } \
             for (DimensionType i = 0; i <= checkPos; i++) \
                 _mm_prefetch((const char *)(m_pSamples)[node[i]], _MM_HINT_T0); \
+            float distLimit = p_space.m_Results.worst(); \
+            bool localopt = true; \
             for (DimensionType i = 0; i <= checkPos; i++) { \
                 SizeType nn_index = node[i]; \
                 if (nn_index < 0) break; \
@@ -136,8 +137,11 @@ namespace SPTAG
                 float distance2leaf = m_fComputeDistance(p_query.GetTarget(), (m_pSamples)[nn_index], GetFeatureDim()); \
                 p_space.m_iNumberOfCheckedLeaves++; \
                 p_space.m_NGQueue.insert(COMMON::HeapCell(nn_index, distance2leaf)); \
+                if (distance2leaf < distLimit) localopt = false; \
             } \
-            if (p_space.m_NGQueue.Top().distance > p_space.m_SPTQueue.Top().distance) { \
+            if (localopt) p_space.m_iNumOfContinuousNoBetterPropagation++; \
+            else p_space.m_iNumOfContinuousNoBetterPropagation = 0; \
+            if (p_space.m_iNumOfContinuousNoBetterPropagation >= m_iThresholdOfNumberOfContinuousNoBetterPropagation || p_space.m_NGQueue.Top().distance > p_space.m_SPTQueue.Top().distance) { \
                 m_pTrees.SearchTrees(this, p_query, p_space, m_iNumberOfOtherDynamicPivots + p_space.m_iNumberOfCheckedLeaves); \
             } \
         } \
