@@ -136,8 +136,10 @@ namespace SPTAG
                 if (p_space.CheckAndSet(nn_index)) continue; \
                 float distance2leaf = m_fComputeDistance(p_query.GetTarget(), (m_pSamples)[nn_index], GetFeatureDim()); \
                 p_space.m_iNumberOfCheckedLeaves++; \
-                p_space.m_NGQueue.insert(COMMON::HeapCell(nn_index, distance2leaf)); \
-                if (distance2leaf < distLimit) localopt = false; \
+                if (distance2leaf < distLimit) { \
+                    localopt = false; \
+                    p_space.m_NGQueue.insert(COMMON::HeapCell(nn_index, distance2leaf)); \
+                } \
             } \
             if (localopt) p_space.m_iNumOfContinuousNoBetterPropagation++; \
             else p_space.m_iNumOfContinuousNoBetterPropagation = 0; \
