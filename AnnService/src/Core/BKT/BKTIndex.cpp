@@ -111,6 +111,9 @@ namespace SPTAG
             const SizeType *node = m_pGraph[gnode.node]; \
             _mm_prefetch((const char *)node, _MM_HINT_T0); \
             CheckDeleted1 { \
+                if (!p_space.m_Results.insert(gnode.distance)) { \
+                    p_query.SortResult(); return; \
+                } \
                 if (p_query.AddPoint(gnode.node, gnode.distance)) { \
                     SizeType checkNode = node[checkPos]; \
                     if (checkNode < -1) { \
@@ -118,11 +121,6 @@ namespace SPTAG
                         for (SizeType i = -tnode.childStart; i < tnode.childEnd; i++) { \
                             if (!p_query.AddPoint(m_pTrees[i].centerid, gnode.distance)) break; \
                         } \
-                    } \
-                } \
-                else { \
-                    if (!p_space.m_Results.insert(gnode.distance)) { \
-                        p_query.SortResult(); return; \
                     } \
                 } \
             } \
