@@ -205,7 +205,7 @@ namespace SPTAG
                     size >>= 1;
                 }
                 m_secondHash = true;
-                m_poolSize = 1 << ((ex + 4) / 2 + 3) - 1;
+                m_poolSize = (1 << ((ex + 4) / 2 + 3)) - 1;
                 m_hashTable.reset(new SizeType[m_poolSize + 1]);
                 clear();
             }
