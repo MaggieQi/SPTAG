@@ -289,13 +289,13 @@ namespace SPTAG
                     if (tnode.childStart < 0) {
                         if (!p_space.CheckAndSet(tnode.centerid)) {
                             p_space.m_iNumberOfCheckedLeaves++;
-                            if (p_space.m_Results.insert(bcell.distance)) p_space.m_NGQueue.insert(COMMON::HeapCell(tnode.centerid, bcell.distance));
+                            p_space.m_NGQueue.insert(COMMON::HeapCell(tnode.centerid, bcell.distance));
                         }
                         if (p_space.m_iNumberOfCheckedLeaves >= p_limits) break;
                     }
                     else {
                         if (!p_space.CheckAndSet(tnode.centerid)) {
-                            if (p_space.m_Results.insert(bcell.distance)) p_space.m_NGQueue.insert(COMMON::HeapCell(tnode.centerid, bcell.distance));
+                            p_space.m_NGQueue.insert(COMMON::HeapCell(tnode.centerid, bcell.distance));
                         }
                         for (SizeType begin = tnode.childStart; begin < tnode.childEnd; begin++) {
                             SizeType index = m_pTreeRoots[begin].centerid;
