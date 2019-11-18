@@ -82,7 +82,7 @@ namespace SPTAG
 
             // Could we use the second hash block.
             bool m_secondHash;
-            
+
             // Max pool size.
             int m_poolSize;
 

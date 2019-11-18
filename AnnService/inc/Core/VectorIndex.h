@@ -107,9 +107,9 @@ protected:
 
     virtual ErrorCode RefineIndex(const std::vector<std::ostream*>& p_indexStreams) = 0;
 
-private:
     void BuildMetaMapping();
 
+private:
     ErrorCode LoadIndexConfig(Helper::IniReader& p_reader);
 
     ErrorCode SaveIndexConfig(std::ostream& p_configOut);
