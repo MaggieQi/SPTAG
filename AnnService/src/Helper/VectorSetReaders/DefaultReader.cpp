@@ -25,7 +25,6 @@ public:
         : m_inStream(p_inStream),
           m_curOffset(0),
           m_curTotal(0)
-
     {
         m_buffer.reset(new char[c_bufferSize]);
     }
