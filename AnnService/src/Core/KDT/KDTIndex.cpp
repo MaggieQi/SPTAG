@@ -311,7 +311,7 @@ namespace SPTAG
         }
 
         template <typename T>
-        ErrorCode Index<T>::AddIndex(const void* p_data, SizeType p_vectorNum, DimensionType p_dimension, std::shared_ptr<MetadataSet> p_metadataSet)
+        ErrorCode Index<T>::AddIndex(const void* p_data, SizeType p_vectorNum, DimensionType p_dimension, std::shared_ptr<MetadataSet> p_metadataSet, bool p_withMetaIndex)
         {
             SizeType begin, end;
             ErrorCode ret;
@@ -324,6 +324,10 @@ namespace SPTAG
                 if (begin == 0) {
                     if ((ret = BuildIndex(p_data, p_vectorNum, p_dimension)) != ErrorCode::Success) return ret;
                     m_pMetadata = std::move(p_metadataSet);
+                    if (p_withMetaIndex && m_pMetadata != nullptr)
+                    {
+                        BuildMetaMapping();
+                    }
                     return ErrorCode::Success;
                 }
 
@@ -358,7 +362,7 @@ namespace SPTAG
                 }
             }
 
-            if (begin - m_pTrees.sizePerTree() < m_addCountForRebuild && end - m_pTrees.sizePerTree() >= m_addCountForRebuild) {
+            if (end - m_pTrees.sizePerTree() >= m_addCountForRebuild && m_threadPool.jobsize() == 0) {
                 m_threadPool.add(new RebuildJob(this, &m_pTrees, &m_pGraph));
             }
 

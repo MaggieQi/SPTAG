@@ -101,7 +101,7 @@ namespace SPTAG
 
 #pragma region K-NN search
 
-#define Search(CheckDeleted1) \
+#define Search(CheckDeleted1, CheckDeleted2) \
         m_pTrees.InitSearchTrees(this, p_query, p_space); \
         m_pTrees.SearchTrees(this, p_query, p_space, m_iNumberOfInitialDynamicPivots); \
         const DimensionType checkPos = m_pGraph.m_iNeighborhoodSize - 1; \
@@ -109,13 +109,17 @@ namespace SPTAG
             COMMON::HeapCell gnode = p_space.m_NGQueue.pop(); \
             const SizeType *node = m_pGraph[gnode.node]; \
             _mm_prefetch((const char *)node, _MM_HINT_T0); \
-            CheckDeleted1 { \
+            CheckDeleted1 \
+            { \
                 if (p_query.AddPoint(gnode.node, gnode.distance)) { \
                     SizeType checkNode = node[checkPos]; \
                     if (checkNode < -1) { \
                         const COMMON::BKTNode& tnode = m_pTrees[-2 - checkNode]; \
                         for (SizeType i = -tnode.childStart; i < tnode.childEnd; i++) { \
-                            if (!p_query.AddPoint(m_pTrees[i].centerid, gnode.distance)) break; \
+                            CheckDeleted2 \
+                            { \
+                                if (!p_query.AddPoint(m_pTrees[i].centerid, gnode.distance)) break; \
+                            } \
                         } \
                     } \
                 } else if (gnode.distance > p_space.m_Results.worst()) { \
@@ -143,13 +147,13 @@ namespace SPTAG
         template <typename T>
         void Index<T>::SearchIndexWithDeleted(COMMON::QueryResultSet<T> &p_query, COMMON::WorkSpace &p_space, const Helper::Concurrent::ConcurrentSet<SizeType> &p_deleted) const
         {
-            Search(if (!p_deleted.contains(gnode.node)))
+            Search(if (!p_deleted.contains(gnode.node)), if (!p_deleted.contains(m_pTrees[i].centerid)))
         }
 
         template <typename T>
         void Index<T>::SearchIndexWithoutDeleted(COMMON::QueryResultSet<T> &p_query, COMMON::WorkSpace &p_space) const
         {
-            Search(;)
+            Search(; , ;)
         }
 
         template<typename T>
@@ -310,7 +314,7 @@ namespace SPTAG
         }
 
         template <typename T>
-        ErrorCode Index<T>::AddIndex(const void* p_data, SizeType p_vectorNum, DimensionType p_dimension, std::shared_ptr<MetadataSet> p_metadataSet)
+        ErrorCode Index<T>::AddIndex(const void* p_data, SizeType p_vectorNum, DimensionType p_dimension, std::shared_ptr<MetadataSet> p_metadataSet, bool p_withMetaIndex)
         {
             SizeType begin, end;
             ErrorCode ret;
@@ -323,6 +327,10 @@ namespace SPTAG
                 if (begin == 0) {
                     if ((ret = BuildIndex(p_data, p_vectorNum, p_dimension)) != ErrorCode::Success) return ret;
                     m_pMetadata = std::move(p_metadataSet);
+                    if (p_withMetaIndex && m_pMetadata != nullptr)
+                    {
+                        BuildMetaMapping();
+                    }
                     return ErrorCode::Success;
                 }
 
@@ -357,7 +365,7 @@ namespace SPTAG
                 }
             }
 
-            if (begin - m_pTrees.sizePerTree() < m_addCountForRebuild && end - m_pTrees.sizePerTree() >= m_addCountForRebuild) {
+            if (end - m_pTrees.sizePerTree() >= m_addCountForRebuild && m_threadPool.jobsize() == 0) {
                 m_threadPool.add(new RebuildJob(this, &m_pTrees, &m_pGraph));
             }
 
