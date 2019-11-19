@@ -7,8 +7,6 @@
 #include "CommonUtils.h"
 #include "Heap.h"
 
-#include <unordered_set>
-
 namespace SPTAG
 {
     namespace COMMON
@@ -177,67 +175,6 @@ namespace SPTAG
             }
         };
 
-        class OptHashVector
-        {
-        private:
-            bool m_secondHash;
-            uint32_t m_poolSize;
-            std::unique_ptr<SizeType[]> m_hashTable;
-            
-
-            std::unordered_set<SizeType> m_stlhash;
-
-            inline uint32_t  hash_func(const uint32_t value) {
-                return value & m_poolSize;
-            }
-
-        public:
-            OptHashVector():m_hashTable(nullptr), m_poolSize(0) {}
-
-            ~OptHashVector() {}
-
-
-            void Init(SizeType size)
-            {
-                int ex = 0;
-                while (size != 0) {
-                    ex++;
-                    size >>= 1;
-                }
-                m_secondHash = true;
-                m_poolSize = (1 << ((ex + 4) / 2 + 3)) - 1;
-                m_hashTable.reset(new SizeType[m_poolSize + 1]);
-                clear();
-            }
-
-            void clear()
-            {
-                memset(m_hashTable.get(), 0, (m_poolSize + 1) * sizeof(SizeType));
-                if (m_secondHash) {
-                    m_secondHash = false;
-                    m_stlhash.clear();
-                }
-            }
-
-            inline bool CheckAndSet(SizeType idx)
-            {
-                idx++;
-                SizeType& v = m_hashTable[hash_func(static_cast<uint32_t>(idx))];
-                if (v == idx) return true;
-                if (v == 0) {
-                    v = idx;
-                    return false;
-                }
-
-                if (m_stlhash.count(idx) <= 0) {
-                    m_secondHash = true;
-                    m_stlhash.insert(idx);
-                    return false;
-                }
-                return true;
-            }
-        };
-
         // Variables for each single NN search
         struct WorkSpace
         {
@@ -274,7 +211,7 @@ namespace SPTAG
                 return nodeCheckStatus.CheckAndSet(idx);
             }
 
-            OptHashVector nodeCheckStatus;
+            OptHashPosVector nodeCheckStatus;
 
             // counter for dynamic pivoting
             int m_iNumOfContinuousNoBetterPropagation;
