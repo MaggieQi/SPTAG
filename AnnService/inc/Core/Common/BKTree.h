@@ -727,61 +727,76 @@ break;
                         std::vector<ParallelNodeResult> results(levelSize);
 
                         // Parallel phase: Run k-means for all nodes in this level
-                        #pragma omp parallel for schedule(dynamic, 1) num_threads(numOfThreads)
-                        for (int idx = 0; idx < (int)levelSize; idx++) {
-                            BKTStackItem& item = currentLevel[idx];
-                            ParallelNodeResult& result = results[idx];
-                            result.parentIndex = item.index;
-                            result.first = item.first;
-                            result.last = item.last;
-                            result.isLeaf = false;
-                            result.singleCluster = false;
+                        std::atomic_int nextidx(0);
+                        auto func = [&]() {
+                            while (true) {
+                                int idx = nextidx.fetch_add(1);
+                                if (idx < (int)levelSize) {
+                                    BKTStackItem& item = currentLevel[idx];
+                                    ParallelNodeResult& result = results[idx];
+                                    result.parentIndex = item.index;
+                                    result.first = item.first;
+                                    result.last = item.last;
+                                    result.isLeaf = false;
+                                    result.singleCluster = false;
 
-                            if (item.last - item.first <= m_iBKTLeafSize) {
-                                // Leaf node
-                                result.isLeaf = true;
-                                for (SizeType j = item.first; j < item.last; j++) {
-                                    SizeType cid = (reverseIndices == nullptr) ? localindices[j] : reverseIndices->at(localindices[j]);
-                                    result.childCenters.push_back(cid);
-                                }
-                            } else {
-                                // K-means clustering - use thread-local args with 1 thread
-                                // (parallelism is at the node level, not within k-means)
-                                // IMPORTANT: Must use full dataset size because KmeansAssign uses absolute indices
-                                // (args.label[i] where i ranges from first to last, not 0 to rangeSize)
-                                KmeansArgs<T> localArgs(m_iBKTKmeansK, data.C(), (SizeType)localindices.size(), 1, distMethod, m_pQuantizer);
+                                    if (item.last - item.first <= m_iBKTLeafSize) {
+                                        // Leaf node
+                                        result.isLeaf = true;
+                                        for (SizeType j = item.first; j < item.last; j++) {
+                                            SizeType cid = (reverseIndices == nullptr) ? localindices[j] : reverseIndices->at(localindices[j]);
+                                            result.childCenters.push_back(cid);
+                                        }
+                                    } else {
+                                        // K-means clustering - use thread-local args with 1 thread
+                                        // (parallelism is at the node level, not within k-means)
+                                        // IMPORTANT: Must use full dataset size because KmeansAssign uses absolute indices
+                                        // (args.label[i] where i ranges from first to last, not 0 to rangeSize)
+                                        KmeansArgs<T> localArgs(m_iBKTKmeansK, data.C(), (SizeType)localindices.size(), 1, distMethod, m_pQuantizer);
 
-                                int dk = m_iBKTKmeansK;
-                                if (dynamicK) {
-                                    dk = std::min<int>((item.last - item.first) / m_iBKTLeafSize + 1, m_iBKTKmeansK);
-                                    dk = std::max<int>(dk, 2);
-                                    localArgs._DK = dk;
-                                }
+                                        int dk = m_iBKTKmeansK;
+                                        if (dynamicK) {
+                                            dk = std::min<int>((item.last - item.first) / m_iBKTLeafSize + 1, m_iBKTKmeansK);
+                                            dk = std::max<int>(dk, 2);
+                                            localArgs._DK = dk;
+                                        }
 
-                                int numClusters = KmeansClustering(data, localindices, item.first, item.last, localArgs,
-                                    m_iSamples, m_fBalanceFactor, false, abort);
+                                        int numClusters = KmeansClustering(data, localindices, item.first, item.last, localArgs,
+                                            m_iSamples, m_fBalanceFactor, false, abort);
 
-                                if (numClusters <= 1) {
-                                    result.singleCluster = true;
-                                    SizeType end = min(item.last + 1, (SizeType)localindices.size());
-                                    std::sort(localindices.begin() + item.first, localindices.begin() + end);
-                                    result.singleClusterCenter = (reverseIndices == nullptr) ? localindices[item.first] : reverseIndices->at(localindices[item.first]);
-                                    for (SizeType j = item.first + 1; j < end; j++) {
-                                        SizeType cid = (reverseIndices == nullptr) ? localindices[j] : reverseIndices->at(localindices[j]);
-                                        result.childCenters.push_back(cid);
+                                        if (numClusters <= 1) {
+                                            result.singleCluster = true;
+                                            SizeType end = min(item.last + 1, (SizeType)localindices.size());
+                                            std::sort(localindices.begin() + item.first, localindices.begin() + end);
+                                            result.singleClusterCenter = (reverseIndices == nullptr) ? localindices[item.first] : reverseIndices->at(localindices[item.first]);
+                                            for (SizeType j = item.first + 1; j < end; j++) {
+                                                SizeType cid = (reverseIndices == nullptr) ? localindices[j] : reverseIndices->at(localindices[j]);
+                                                result.childCenters.push_back(cid);
+                                            }
+                                        } else {
+                                            SizeType pos = item.first;
+                                            for (int k = 0; k < m_iBKTKmeansK; k++) {
+                                                if (localArgs.counts[k] == 0) continue;
+                                                SizeType cid = (reverseIndices == nullptr) ? localindices[pos + localArgs.counts[k] - 1] : reverseIndices->at(localindices[pos + localArgs.counts[k] - 1]);
+                                                result.childCenters.push_back(cid);
+                                                result.childCounts.push_back(localArgs.counts[k]);
+                                                pos += localArgs.counts[k];
+                                            }
+                                        }
                                     }
                                 } else {
-                                    SizeType pos = item.first;
-                                    for (int k = 0; k < m_iBKTKmeansK; k++) {
-                                        if (localArgs.counts[k] == 0) continue;
-                                        SizeType cid = (reverseIndices == nullptr) ? localindices[pos + localArgs.counts[k] - 1] : reverseIndices->at(localindices[pos + localArgs.counts[k] - 1]);
-                                        result.childCenters.push_back(cid);
-                                        result.childCounts.push_back(localArgs.counts[k]);
-                                        pos += localArgs.counts[k];
-                                    }
+                                    return;
                                 }
                             }
+                        };
+
+                        std::vector<std::thread> mythreads;
+                        mythreads.reserve(numOfThreads);
+                        for (int tid = 0; tid < numOfThreads; tid++)
+                        {
+                            mythreads.emplace_back(func);
                         }
+                        for (auto& thread : mythreads) { thread.join(); }
 
                         // Sequential phase: Build tree structure and prepare next level
                         nextLevel.clear();
